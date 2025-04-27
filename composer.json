@@ -1,0 +1,14 @@
+{
+    "name": "adil-jaafar/picophp",
+    "description": "Ultra-léger, conçu pour aller à l'essentiel.",
+    "type": "library",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "PicoPHP\\": "src/Pico/"
+        }
+    },
+    "require": {},
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}
