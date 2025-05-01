@@ -12,9 +12,10 @@ class Core
 {
     protected string $routesDirectory;
 
-    public function __construct($congiguration = []) {
+    public function __construct($congiguration = [])
+    {
         $this->routesDirectory = $congiguration['routesDirectory'] ?? __DIR__ . '/../app';
-        Env::$env_dirpath = $congiguration['rootDirectory'] ?? __DIR__. "/../";
+        Env::$env_dirpath = $congiguration['rootDirectory'] ?? __DIR__ . "/../";
         Response::$viewsPath = $congiguration['viewDirectory'] ?? __DIR__ . '/../views';
     }
     public function run()
@@ -137,6 +138,7 @@ class Core
         if (!is_dir($this->routesDirectory)) return [];
 
         // Exécute la commande pour lister les dossiers
+        // Commandes pour Windows : FOR /D /R "C:\Your\Directory" %%i IN (*) DO @ECHO %%i
         exec("find " . escapeshellarg($this->routesDirectory) . " -type d", $output, $returnVar);
         if ($returnVar !== 0)  return [];
 
@@ -177,19 +179,15 @@ class Core
         ], $path) . '$#';
     }
 
-    protected function countLiteralSegments(string $path): int {
-        $segments = explode('/', trim($path, '/'));
-        $count = 0;
-    
-        foreach ($segments as $segment) {
-            // Si le segment est entre () ou [] → dynamique, on l'ignore
-            if (empty($segment) || preg_match('/^\(.*\)$|^\[.*\]$/', $segment)) {
-                continue;
-            }
-            $count++;
-        }
-    
-        return $count;
+    protected function countLiteralSegments(string $path): int
+    {
+        // Filtrage des segments qui ne sont ni entre [] ni entre ()
+        $segments = array_filter(explode('/', trim($path, '/')), function ($segment) {
+            $seg = ($segment[0] ?? '') . ($segment[-1] ?? '');
+            return !in_array($seg, ['[]', '()', '{}']);
+        });
+
+        // Retourne le nombre de segments filtrés
+        return count($segments);
     }
-    
 }
