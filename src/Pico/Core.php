@@ -136,47 +136,48 @@ class Core
     protected function generateRoutes(): array
     {
         if (!is_dir($this->routesDirectory)) return [];
-
-        // Exécute la commande pour lister les dossiers
-        // Commandes pour Windows : FOR /D /R "C:\Your\Directory" %%i IN (*) DO @ECHO %%i
-        exec("find " . escapeshellarg($this->routesDirectory) . " -type d", $output, $returnVar);
-        if ($returnVar !== 0)  return [];
-
-        // Générer les regex
         $regexPath = [];
-        foreach ($output as $dossier) {
-            $appDossier = ltrim(str_replace($this->routesDirectory, '', $dossier), '/');
-
-            // On ignore les path qui se terminent avec un dossier entre parenthèses
-            if (preg_match('/(\/|^)\([^)]+\)$/', $appDossier)) continue;
-
-            $expressionRegex = $this->generateRegexFromPath($appDossier);
+        $iterator = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($this->routesDirectory, \RecursiveDirectoryIterator::SKIP_DOTS),
+            \RecursiveIteratorIterator::SELF_FIRST
+        );
+        foreach ($iterator as $item) {
+            if (!$item->isDir()) continue;
+            $realPath = $item->getRealPath();
+            if ($realPath === false) continue;
+            $relativePath = str_replace(DIRECTORY_SEPARATOR, '/', substr($realPath, strlen($this->routesDirectory)));
+            $relativePath = trim($relativePath, '/');
+            if ($relativePath === '') continue;
+            if (preg_match('/(\/|^)\([^)]+\)$/', $relativePath)) continue;
+            $expressionRegex = $this->generateRegexFromPath($relativePath);
             $regexPath[$expressionRegex] = [
-                "path" => $appDossier,
-                "matching_score" => $this->countLiteralSegments($appDossier)
+                "path" => $relativePath,
+                "matching_score" => $this->countLiteralSegments($relativePath)
             ];
         }
 
+        print_r($regexPath);
         return $regexPath;
     }
 
     protected function generateRegexFromPath(string $path): string
     {
-        return '#^' . preg_replace([
-            '/\([^)]+\)/',           // Supprime les segments facultatifs entre parenthèses
-            '/\/\//',                  // Remplace les doubles slashs
-            '/^\//',                // Supprime le slash de début
-            '/\/$/',                // Supprime le slash de fin
-            '/\[([a-zA-Z0-9_-]+)\]/',  // Convertit [id] en (?<id>[^/]+)
-            '/\[\.\.\.([a-zA-Z0-9_-]+)\]/' // Convertit [...path] en (?<path>.+)
+        if ($path === '' || $path === '/') {
+            return '#^(?:/)?$#';
+        }
+        $escapedPath = preg_quote($path, '#');
+        $pattern = '^' . $escapedPath;
+        $pattern = preg_replace([
+            '/\([^)]+\)/',
+            '/\[([a-zA-Z0-9_-]+)\]/',
+            '/\[\.\.\.([a-zA-Z0-9_-]+)\]/'
         ], [
-            '',
-            '',
-            '',
-            '/',
+            '(?:/.+)?',
             '(?<$1>[^/]+)',
             '(?<$1>.+)'
-        ], $path) . '$#';
+        ], $pattern);
+        $pattern .= '(?:/(.*))?$';
+        return '#' . $pattern . '#';
     }
 
     protected function countLiteralSegments(string $path): int
