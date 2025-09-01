@@ -156,7 +156,6 @@ class Core
             ];
         }
 
-        print_r($regexPath);
         return $regexPath;
     }
 
